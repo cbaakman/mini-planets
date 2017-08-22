@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="mini-planets" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/mini-planets" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="-DDEBUG" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/mini-planets" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-std=c++0x" />
+			<Add option="-ftemplate-backtrace-limit=0" />
+		</Compiler>
+		<Linker>
+			<Add library="mingw32" />
+			<Add library="SDL2main" />
+			<Add library="SDL2" />
+			<Add library="opengl32" />
+			<Add library="glew32" />
+			<Add library="png" />
+			<Add library="xml2" />
+			<Add library="cairo" />
+			<Add library="unzip" />
+			<Add library="boost_system-mgw49-mt-1_64" />
+			<Add library="boost_filesystem-mgw49-mt-1_64" />
+			<Add library="boost_thread-mgw49-mt-1_64" />
+		</Linker>
+		<Unit filename="src/client-main.cpp" />
+		<Unit filename="src/client.cpp" />
+		<Unit filename="src/client.h" />
+		<Unit filename="src/collision.cpp" />
+		<Unit filename="src/collision.h" />
+		<Unit filename="src/event.cpp" />
+		<Unit filename="src/event.h" />
+		<Unit filename="src/exception.cpp" />
+		<Unit filename="src/exception.h" />
+		<Unit filename="src/font.cpp" />
+		<Unit filename="src/font.h" />
+		<Unit filename="src/icosphere.cpp" />
+		<Unit filename="src/icosphere.h" />
+		<Unit filename="src/io.cpp" />
+		<Unit filename="src/io.h" />
+		<Unit filename="src/lang.cpp" />
+		<Unit filename="src/lang.h" />
+		<Unit filename="src/log.h" />
+		<Unit filename="src/matrix.h" />
+		<Unit filename="src/play.cpp" />
+		<Unit filename="src/play.h" />
+		<Unit filename="src/quat.h" />
+		<Unit filename="src/resource.cpp" />
+		<Unit filename="src/resource.h" />
+		<Unit filename="src/scene.cpp" />
+		<Unit filename="src/scene.h" />
+		<Unit filename="src/server.cpp" />
+		<Unit filename="src/server.h" />
+		<Unit filename="src/settings.cpp" />
+		<Unit filename="src/settings.h" />
+		<Unit filename="src/shader.cpp" />
+		<Unit filename="src/shader.h" />
+		<Unit filename="src/sprite.cpp" />
+		<Unit filename="src/sprite.h" />
+		<Unit filename="src/str.cpp" />
+		<Unit filename="src/str.h" />
+		<Unit filename="src/texture.cpp" />
+		<Unit filename="src/texture.h" />
+		<Unit filename="src/vec.h" />
+		<Unit filename="src/xml.cpp" />
+		<Unit filename="src/xml.h" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

@@ -1,3 +1,33 @@
+# Text editor swap files
+*.swp
+*~
+
+# Config files
+*.ini
+
+# Executables
+bin/client
+*.exe
+
+# Codeblocks aut generated
+*.depend
+*.layout
+
+# C++ object files
+*.o
+
+# archives
+*.zip
+
+# generated png files
+*.png
+
+# resource xml files
+resources.xml
+
+# language files
+*.lang
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
