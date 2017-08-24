@@ -24,6 +24,8 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 
+#include "log.h"
+
 template <int N>
 struct vec
 {

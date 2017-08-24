@@ -59,8 +59,8 @@
 		<Unit filename="src/exception.h" />
 		<Unit filename="src/font.cpp" />
 		<Unit filename="src/font.h" />
-		<Unit filename="src/icosphere.cpp" />
-		<Unit filename="src/icosphere.h" />
+		<Unit filename="src/sphere.cpp" />
+		<Unit filename="src/sphere.h" />
 		<Unit filename="src/io.cpp" />
 		<Unit filename="src/io.h" />
 		<Unit filename="src/lang.cpp" />

@@ -23,76 +23,8 @@
 #include "matrix.h"
 #include "exception.h"
 #include "log.h"
-#include "icosphere.h"
 #include "noise.h"
-#include "shader.h"
 
-
-const char terrainVertexShader[] = R"shader(
-    #version 330 core
-    layout (location = 0) in vec3 pos;
-
-    out vec3 TexCoords;
-
-    uniform mat4 projection;
-    uniform mat4 view;
-    uniform vec3 center;
-
-    void main()
-    {
-        TexCoords = pos - center;
-        gl_Position = projection * view * vec4(pos, 1.0);
-    }
-)shader",
-
-           terrainFragmentShader[] = R"shader(
-    #version 330 core
-    out vec4 FragColor;
-
-    in vec3 TexCoords;
-
-    uniform samplerCube map;
-
-    #define PI_4 0.785398163397448309616
-    #define PI 3.14159265358979323846264338327
-    #define SQRT2_2 0.7071067811865476
-
-    const vec3 faceDirections[6] = vec3[6](vec3(-1.0, 0.0, 0.0),
-                                           vec3(1.0, 0.0, 0.0),
-                                           vec3(0.0, -1.0, 0.0),
-                                           vec3(0.0, 1.0, 0.0),
-                                           vec3(0.0, 0.0, -1.0),
-                                           vec3(0.0, 0.0, 1.0));
-
-    vec3 sphere2cubic(vec3 spheric)
-    {
-        vec3 faceDirection = faceDirections[0];
-        for (int i = 0; i < 6; i++)
-            if (dot(faceDirections[i], spheric) > dot(faceDirection, spheric))
-                faceDirection = faceDirections[i];
-
-        float r = length(spheric),
-              f = SQRT2_2 / PI_4;
-
-        if (faceDirection.x != 0.0)
-        {
-            return vec3(faceDirection.x, f * atan(spheric.y / abs(spheric.x)), f * atan(spheric.z / abs(spheric.x)));
-        }
-        else if (faceDirection.y != 0.0)
-        {
-            return vec3(f * atan(spheric.x / abs(spheric.y)), faceDirection.y, f * atan(spheric.z / abs(spheric.y)));
-        }
-        else if (faceDirection.z != 0.0)
-        {
-            return vec3(f * atan(spheric.x / abs(spheric.z)), f * atan(spheric.y / abs(spheric.z)), faceDirection.z);
-        }
-    }
-
-    void main()
-    {
-        FragColor = texture(map, sphere2cubic(TexCoords));
-    }
-)shader";
 
 template <typename T>
 struct AverageBuilder
@@ -111,20 +43,6 @@ struct AverageBuilder
     }
 };
 
-struct CompareVec3
-{
-    bool operator()(const vec3 &v1, const vec3 &v2) const
-    {
-        if (v1.x == v2.x)
-            if (v1.y == v2.y)
-                return v1.z < v2.z;
-            else
-                return v1.y < v2.y;
-        else
-            return v1.x < v2.x;
-    }
-};
-
 #define PLAYER_EYE_Y 0.7f
 #define PLAYER_FEET_Y -1.0f
 
@@ -138,27 +56,26 @@ PlayScene::PlayScene(Client *pCl):
 {
     PerlinNoiseGenerator<3> perlin(time(NULL));
 
-    std::map<vec3, VertexIndex, CompareVec3> indices;
     std::vector<AverageBuilder<vec3>> averageNormals;
-    IterIcoSphere(4,
-        [this, &indices, &averageNormals, &perlin](const vec3 &p)
+    IterOctaSphere(4,
+        [this, &averageNormals, &perlin](const VertexIndex i, const vec3 &p)
         {
             TerrainVertex v;
 
             GLfloat r = 10.0f + 0.5f * perlin.Noise(p * 2);
             v.p = p * r;
 
+            v.t = {0.0f, 0.0f};
+
+            v.t += vec2(0.0f, fabs(p.y));
+            v.t += vec2(0.0f, fabs(p.x)).Rotate(-2 * PI / 3);
+            v.t += vec2(0.0f, fabs(p.z)).Rotate(2 * PI / 3);
+
             mTerrainVertices.push_back(v);
             averageNormals.push_back({0, {0.0f, 0.0f, 0.0f}});
-            VertexIndex i = VertexIndex(mTerrainVertices.size() - 1);
-            indices.emplace(p, i);
         },
-        [this, &indices, &averageNormals](const vec3 &p0, const vec3 &p1, const vec3 &p2)
+        [this, &averageNormals](const VertexIndex i0, const VertexIndex i1, const VertexIndex i2)
         {
-            VertexIndex i0 = indices.at(p0),
-                        i1 = indices.at(p1),
-                        i2 = indices.at(p2);
-
             mTerrainTriangles.push_back({i0, i1, i2});
 
             vec3 n0 = Cross(mTerrainVertices[i0].p - mTerrainVertices[i1].p,
@@ -181,14 +98,7 @@ PlayScene::PlayScene(Client *pCl):
     mInitJobs.push_back(
         [this]()
         {
-            rGrassTexture = pClient->GetResourceManager()->GetCubeMap("grass");
-        }
-    );
-    mInitJobs.push_back(
-        [this]()
-        {
-            mTerrainShaderProgram = CreateShaderProgram(GL_VERTEX_SHADER, terrainVertexShader,
-                                                        GL_FRAGMENT_SHADER, terrainFragmentShader);
+            rGrassTexture = pClient->GetResourceManager()->GetTexture("grass");
         }
     );
 }
@@ -357,7 +267,7 @@ std::tuple<vec3, vec3, vec3> PlayScene::GetCameraParams(const CameraMode mode)
 #define NEAR_VIEW 0.1f
 #define FAR_VIEW 1000.0f
 const GLfloat lightPos[] = {1.0f, 1.0f, 1.0f, 0.0f};
-const GLfloat diffuse[] = {0.0f, 1.0f, 0.0f, 1.0f};
+const GLfloat diffuse[] = {1.0f, 1.0f, 1.0f, 1.0f};
 const GLfloat ambient[] = {0.0f, 0.0f, 1.0f, 1.0f};
 void PlayScene::Render(void)
 {
@@ -371,36 +281,21 @@ void PlayScene::Render(void)
     ClientSettings settings;
     pClient->GetSettings(settings);
 
-    glUseProgram(mTerrainShaderProgram);
-
-    //glMatrixMode(GL_PROJECTION);
+    glMatrixMode(GL_PROJECTION);
     matrix4 matPerspec = MatPerspec(VIEW_ANGLE,
                                   (GLfloat)settings.display.resolution.width / (GLfloat)settings.display.resolution.height,
                                   NEAR_VIEW, FAR_VIEW);
-    //glLoadMatrixf(&mPerspec);
+    glLoadMatrixf(&matPerspec);
     glViewport(0, 0, settings.display.resolution.width,
                      settings.display.resolution.height);
-    loc = glGetUniformLocation(mTerrainShaderProgram, "projection");
-    if (loc == -1)
-        throw GLException("getting projection matrix location", glGetError());
-    glUniformMatrix4fv(loc, 1, GL_FALSE, &matPerspec);
 
-    //glMatrixMode(GL_MODELVIEW);
+    glMatrixMode(GL_MODELVIEW);
     std::tie(cameraPosPrev, cameraLookatPrev, cameraUpPrev) = GetCameraParams(mPrevCameraMode);
     std::tie(cameraPos, cameraLookat, cameraUp) = GetCameraParams(mCameraMode);
     matrix4 matLook = MatLookAt(cameraPos * inCameraMode + cameraPosPrev * outCameraMode,
                                 cameraLookat * inCameraMode + cameraLookatPrev * outCameraMode,
                                 cameraUp  * inCameraMode + cameraUpPrev * outCameraMode);
-    //glLoadMatrixf(&mLook);
-    loc = glGetUniformLocation(mTerrainShaderProgram, "view");
-    if (loc == -1)
-        throw GLException("getting modelview matrix location", glGetError());
-    glUniformMatrix4fv(loc, 1, GL_FALSE, &matLook);
-
-    loc = glGetUniformLocation(mTerrainShaderProgram, "center");
-    if (loc == -1)
-        throw GLException("getting center vec location", glGetError());
-    glUniform3fv(loc, 1, &mPlanetMassCenter);
+    glLoadMatrixf(&matLook);
 
     glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
     glClearDepth(1.0f);
@@ -410,13 +305,12 @@ void PlayScene::Render(void)
     glEnable(GL_CULL_FACE);
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
-    glDisable(GL_TEXTURE_2D);
 
     glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
 
-    glEnable(GL_TEXTURE_CUBE_MAP);
+    glEnable(GL_TEXTURE_2D);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, rGrassTexture->tex);
+    glBindTexture(GL_TEXTURE_2D, rGrassTexture->tex);
 
     glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse);
     glMaterialfv(GL_FRONT, GL_AMBIENT, ambient);
@@ -428,10 +322,14 @@ void PlayScene::Render(void)
             v = mTerrainVertices[mTerrainTriangles[i].i[j]];
 
             glNormal3f(v.n.x, v.n.y, v.n.z);
+            glTexCoord2f(0.5f + 0.5f * v.t.x, 0.5f + 0.5f * v.t.y);
             glVertex3f(v.p.x, v.p.y, v.p.z);
         }
     }
     glEnd();
+
+    glBindTexture(GL_TEXTURE_2D, NULL);
+    glDisable(GL_TEXTURE_2D);
 }
 void PlayScene::ToggleCameraMode(void)
 {

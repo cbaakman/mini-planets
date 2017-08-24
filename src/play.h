@@ -24,13 +24,13 @@
 #include "vec.h"
 #include "client.h"
 #include "collision.h"
+#include "sphere.h"
 
 struct TerrainVertex
 {
     vec3 p, n;
+    vec2 t;
 };
-
-typedef uint64_t VertexIndex;
 
 struct TerrainTriangle
 {
@@ -62,9 +62,7 @@ private:
     std::vector<TerrainTriangle> mTerrainTriangles;
     vec3 mPlanetMassCenter;
 
-    ResourceReference<CubeMap> rGrassTexture;
-
-    GLuint mTerrainShaderProgram;
+    ResourceReference<Texture> rGrassTexture;
 private:
     void GetPlanetTriangles(std::list<Triangle> &);
 
