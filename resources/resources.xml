@@ -1,0 +1,5 @@
+<resources>
+  <resource name="grass" type="texture">
+    <param id="path" value="grass.png"/>
+  </resource>
+</resources>

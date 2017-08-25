@@ -22,9 +22,6 @@ bin/client
 # generated png files
 *.png
 
-# resource xml files
-resources.xml
-
 # language files
 *.lang
 
