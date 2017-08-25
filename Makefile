@@ -14,7 +14,7 @@ obj/%.o: src/%.cpp
 
 bin/client: obj/client-main.o obj/client.o obj/settings.o obj/server.o obj/xml.o \
 			obj/event.o obj/play.o obj/texture.o obj/font.o obj/exception.o obj/shader.o \
-			obj/str.o obj/resource.o obj/scene.o obj/lang.o obj/icosphere.o obj/io.o \
+			obj/str.o obj/resource.o obj/scene.o obj/lang.o obj/sphere.o obj/io.o \
 			obj/collision.o
 	mkdir -p bin
 	$(CXX) -o $@ $^ $(CLIENT_LIBS:%=-l%)

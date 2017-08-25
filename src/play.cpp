@@ -24,7 +24,118 @@
 #include "exception.h"
 #include "log.h"
 #include "noise.h"
+#include "shader.h"
 
+
+const char terrainVertexShader[] = R"shader(
+    #version 330 core
+    layout (location = 0) in vec3 pos;
+    layout (location = 13) in vec3 n;
+
+    out vec3 Normal;
+    out vec3 FaceDirection;
+
+    uniform mat4 projection;
+    uniform mat4 view;
+    uniform vec3 center;
+
+    void main()
+    {
+        Normal = n;
+        FaceDirection = pos - center;
+
+        gl_Position = projection * view * vec4(pos, 1.0);
+    }
+)shader",
+           terrainFragmentShader[] = R"shader(
+    #version 330 core
+    out vec4 FragColor;
+
+    in vec3 Normal;
+    in vec3 FaceDirection;
+
+    uniform sampler2D tex;
+
+    const vec3 lightDir = normalize(vec3(1.0f, 1.0f, 1.0f)),
+
+               cubefaceDirections[6] = vec3[6]
+               (
+                    vec3(-1.0, 0.0, 0.0),
+                    vec3(1.0, 0.0, 0.0),
+                    vec3(0.0, -1.0, 0.0),
+                    vec3(0.0, 1.0, 0.0),
+                    vec3(0.0, 0.0, -1.0),
+                    vec3(0.0, 0.0, 1.0)
+               ),
+
+               cubefaceUpDirs[6] = vec3[6]
+               (
+                    vec3(0.0, -1.0, 0.0),
+                    vec3(0.0, 1.0, 0.0),
+                    vec3(0.0, 0.0, 1.0),
+                    vec3(0.0, 0.0, -1.0),
+                    vec3(-1.0, 0.0, 0.0),
+                    vec3(1.0, 0.0, 0.0)
+               );
+
+    #define PI 3.14159265358979323846264338327
+
+    /*
+       Calculate the texture coordinates based on their angles
+       with the x, y, z axes.
+
+       Weight the texture coordinates. The bigger the angle, the
+       less weight.
+     */
+
+    vec2 GetTexCoords(vec3 dir, vec3 faceDir, vec3 upDir)
+    {
+        float phi, theta, x, y, z;
+
+        y = dot(upDir, dir);
+        z = dot(faceDir, dir);
+        x = dot(cross(upDir, faceDir), dir);
+
+        phi = atan(x / z);
+        theta = atan(y / z);
+
+        return vec2(
+            0.5 + phi / PI,
+            0.5 + theta / PI
+        );
+    }
+
+    float GetTexWeight(vec3 dir, vec3 faceDir, vec3 upDir)
+    {
+        float angle = acos(dot(dir, faceDir));
+
+        return 1.0 - 2 * clamp(angle, 0.0, PI / 2) / PI;
+    }
+
+    void main()
+    {
+        vec3 dir = normalize(FaceDirection);
+
+        int i;
+        float sum = 0.0,
+              w;
+        vec4 color = vec4(0.0, 0.0, 0.0, 0.0);
+        for (i = 0; i < 6; i++)
+        {
+            w = GetTexWeight(dir, cubefaceDirections[i], cubefaceUpDirs[i]);
+            sum += w;
+            color += w * texture(tex, GetTexCoords(dir, cubefaceDirections[i], cubefaceUpDirs[i]));
+        }
+        color /= sum;
+
+        float ambient = 0.3;
+
+        float lit = ambient + (1.0 - ambient) * max(0.0, dot(normalize(Normal), lightDir));
+        vec4 shadecolor = vec4(0.0, 0.0, 0.5, 1.0);
+
+        FragColor = lit * color + (1.0 - lit) * shadecolor;
+    }
+ )shader";
 
 template <typename T>
 struct AverageBuilder
@@ -57,19 +168,14 @@ PlayScene::PlayScene(Client *pCl):
     PerlinNoiseGenerator<3> perlin(time(NULL));
 
     std::vector<AverageBuilder<vec3>> averageNormals;
-    IterOctaSphere(4,
+    IterIcoSphere(4,
         [this, &averageNormals, &perlin](const VertexIndex i, const vec3 &p)
         {
+            int j;
             TerrainVertex v;
 
             GLfloat r = 10.0f + 0.5f * perlin.Noise(p * 2);
             v.p = p * r;
-
-            v.t = {0.0f, 0.0f};
-
-            v.t += vec2(0.0f, fabs(p.y));
-            v.t += vec2(0.0f, fabs(p.x)).Rotate(-2 * PI / 3);
-            v.t += vec2(0.0f, fabs(p.z)).Rotate(2 * PI / 3);
 
             mTerrainVertices.push_back(v);
             averageNormals.push_back({0, {0.0f, 0.0f, 0.0f}});
@@ -101,9 +207,18 @@ PlayScene::PlayScene(Client *pCl):
             rGrassTexture = pClient->GetResourceManager()->GetTexture("grass");
         }
     );
+
+    mInitJobs.push_back(
+        [this]()
+        {
+            mTerrainShaderProgram = CreateShaderProgram(GL_VERTEX_SHADER, terrainVertexShader,
+                                                        GL_FRAGMENT_SHADER, terrainFragmentShader);
+        }
+    );
 }
 PlayScene::~PlayScene(void)
 {
+    glDeleteProgram(mTerrainShaderProgram);
 }
 void PlayScene::GetPlanetTriangles(std::list<Triangle> &triangles)
 {
@@ -272,7 +387,7 @@ const GLfloat ambient[] = {0.0f, 0.0f, 1.0f, 1.0f};
 void PlayScene::Render(void)
 {
     GLint loc;
-    int i, j;
+    int i, j, k;
     TerrainVertex v;
     vec3 cameraPos, cameraLookat, cameraUp,
          cameraPosPrev, cameraLookatPrev, cameraUpPrev;
@@ -281,21 +396,36 @@ void PlayScene::Render(void)
     ClientSettings settings;
     pClient->GetSettings(settings);
 
-    glMatrixMode(GL_PROJECTION);
+    glUseProgram(mTerrainShaderProgram);
+
+    //glMatrixMode(GL_PROJECTION);
     matrix4 matPerspec = MatPerspec(VIEW_ANGLE,
                                   (GLfloat)settings.display.resolution.width / (GLfloat)settings.display.resolution.height,
                                   NEAR_VIEW, FAR_VIEW);
-    glLoadMatrixf(&matPerspec);
+    //glLoadMatrixf(&matPerspec);
     glViewport(0, 0, settings.display.resolution.width,
                      settings.display.resolution.height);
+    loc = glGetUniformLocation(mTerrainShaderProgram, "projection");
+    if (loc == -1)
+        throw GLException("getting projection matrix location", glGetError());
+    glUniformMatrix4fv(loc, 1, GL_FALSE, &matPerspec);
 
-    glMatrixMode(GL_MODELVIEW);
+    //glMatrixMode(GL_MODELVIEW);
     std::tie(cameraPosPrev, cameraLookatPrev, cameraUpPrev) = GetCameraParams(mPrevCameraMode);
     std::tie(cameraPos, cameraLookat, cameraUp) = GetCameraParams(mCameraMode);
     matrix4 matLook = MatLookAt(cameraPos * inCameraMode + cameraPosPrev * outCameraMode,
                                 cameraLookat * inCameraMode + cameraLookatPrev * outCameraMode,
                                 cameraUp  * inCameraMode + cameraUpPrev * outCameraMode);
-    glLoadMatrixf(&matLook);
+    //glLoadMatrixf(&matLook);
+    loc = glGetUniformLocation(mTerrainShaderProgram, "view");
+    if (loc == -1)
+        throw GLException("getting modelview matrix location", glGetError());
+    glUniformMatrix4fv(loc, 1, GL_FALSE, &matLook);
+
+    loc = glGetUniformLocation(mTerrainShaderProgram, "center");
+    if (loc == -1)
+        throw GLException("getting center location", glGetError());
+    glUniform3fv(loc, 1, &mPlanetMassCenter);
 
     glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
     glClearDepth(1.0f);
@@ -321,15 +451,17 @@ void PlayScene::Render(void)
         {
             v = mTerrainVertices[mTerrainTriangles[i].i[j]];
 
-            glNormal3f(v.n.x, v.n.y, v.n.z);
-            glTexCoord2f(0.5f + 0.5f * v.t.x, 0.5f + 0.5f * v.t.y);
-            glVertex3f(v.p.x, v.p.y, v.p.z);
+            glVertexAttrib3f(13, v.n.x, v.n.y, v.n.z);
+
+            glVertexAttrib3f(0, v.p.x, v.p.y, v.p.z);
         }
     }
     glEnd();
 
     glBindTexture(GL_TEXTURE_2D, NULL);
     glDisable(GL_TEXTURE_2D);
+
+    glUseProgram(NULL);
 }
 void PlayScene::ToggleCameraMode(void)
 {

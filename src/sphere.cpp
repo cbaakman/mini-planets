@@ -24,7 +24,9 @@ typedef std::map<vec3, VertexIndex, CompareVec3> VertexIndexMap;
 
 void SphereTriangleSubdiv(VertexIndexMap &indices,
                           const vec3 &p0, const vec3 &p1, const vec3 &p2,
-                          const int subdiv, SpherePointFunc pointFunc, SphereTriangleFunc triangleFunc)
+                          const int subdiv, SpherePointFunc pointFunc,
+                                            SphereTriangleFunc triangleFunc,
+                                            SphereInterpolationFunc interpolationFunc)
 {
     if (subdiv <= 0)
     {
@@ -48,6 +50,9 @@ void SphereTriangleSubdiv(VertexIndexMap &indices,
 
             if (pointFunc)
                 pointFunc(i, p01);
+
+            if (interpolationFunc)
+                interpolationFunc(indices.at(p0), indices.at(p1), i);
         }
 
         if (indices.find(p12) == indices.end())
@@ -57,6 +62,9 @@ void SphereTriangleSubdiv(VertexIndexMap &indices,
 
             if (pointFunc)
                 pointFunc(i, p12);
+
+            if (interpolationFunc)
+                interpolationFunc(indices.at(p1), indices.at(p2), i);
         }
 
         if (indices.find(p02) == indices.end())
@@ -66,16 +74,21 @@ void SphereTriangleSubdiv(VertexIndexMap &indices,
 
             if (pointFunc)
                 pointFunc(i, p02);
+
+            if (interpolationFunc)
+                interpolationFunc(indices.at(p0), indices.at(p2), i);
         }
 
-        SphereTriangleSubdiv(indices, p0, p01, p02, subdiv - 1, pointFunc, triangleFunc);
-        SphereTriangleSubdiv(indices, p01, p1, p12, subdiv - 1, pointFunc, triangleFunc);
-        SphereTriangleSubdiv(indices, p02, p01, p12, subdiv - 1, pointFunc, triangleFunc);
-        SphereTriangleSubdiv(indices, p02, p12, p2, subdiv - 1, pointFunc, triangleFunc);
+        SphereTriangleSubdiv(indices, p0, p01, p02, subdiv - 1, pointFunc, triangleFunc, interpolationFunc);
+        SphereTriangleSubdiv(indices, p01, p1, p12, subdiv - 1, pointFunc, triangleFunc, interpolationFunc);
+        SphereTriangleSubdiv(indices, p02, p01, p12, subdiv - 1, pointFunc, triangleFunc, interpolationFunc);
+        SphereTriangleSubdiv(indices, p02, p12, p2, subdiv - 1, pointFunc, triangleFunc, interpolationFunc);
     }
 }
 
-void IterIcoSphere(const int subdiv, SpherePointFunc pointFunc, SphereTriangleFunc triangleFunc)
+void IterIcoSphere(const int subdiv, SpherePointFunc pointFunc,
+                                     SphereTriangleFunc triangleFunc,
+                                     SphereInterpolationFunc interpolationFunc)
 {
     const float t = (1.0f + sqrt(5.0f)) / 2;
 
@@ -105,35 +118,37 @@ void IterIcoSphere(const int subdiv, SpherePointFunc pointFunc, SphereTriangleFu
     }
 
     // 5 faces around point 0
-    SphereTriangleSubdiv(indices, points[0], points[11], points[5], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[0], points[5], points[1], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[0], points[1], points[7], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[0], points[7], points[10], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[0], points[10], points[11], subdiv, pointFunc, triangleFunc);
+    SphereTriangleSubdiv(indices, points[0], points[11], points[5], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[0], points[5], points[1], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[0], points[1], points[7], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[0], points[7], points[10], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[0], points[10], points[11], subdiv, pointFunc, triangleFunc, interpolationFunc);
 
     // 5 adjacent faces
-    SphereTriangleSubdiv(indices, points[1], points[5], points[9], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[5], points[11], points[4], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[11], points[10], points[2], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[10], points[7], points[6], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[7], points[1], points[8], subdiv, pointFunc, triangleFunc);
+    SphereTriangleSubdiv(indices, points[1], points[5], points[9], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[5], points[11], points[4], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[11], points[10], points[2], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[10], points[7], points[6], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[7], points[1], points[8], subdiv, pointFunc, triangleFunc, interpolationFunc);
 
     // 5 faces around point 3
-    SphereTriangleSubdiv(indices, points[3], points[9], points[4], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[3], points[4], points[2], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[3], points[2], points[6], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[3], points[6], points[8], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[3], points[8], points[9], subdiv, pointFunc, triangleFunc);
+    SphereTriangleSubdiv(indices, points[3], points[9], points[4], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[3], points[4], points[2], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[3], points[2], points[6], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[3], points[6], points[8], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[3], points[8], points[9], subdiv, pointFunc, triangleFunc, interpolationFunc);
 
     // 5 adjacent faces
-    SphereTriangleSubdiv(indices, points[4], points[9], points[5], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[2], points[4], points[11], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[6], points[2], points[10], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[8], points[6], points[7], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[9], points[8], points[1], subdiv, pointFunc, triangleFunc);
+    SphereTriangleSubdiv(indices, points[4], points[9], points[5], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[2], points[4], points[11], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[6], points[2], points[10], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[8], points[6], points[7], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[9], points[8], points[1], subdiv, pointFunc, triangleFunc, interpolationFunc);
 }
 
-void IterOctaSphere(const int subdiv, SpherePointFunc pointFunc, SphereTriangleFunc triangleFunc)
+void IterOctaSphere(const int subdiv, SpherePointFunc pointFunc,
+                                      SphereTriangleFunc triangleFunc,
+                                      SphereInterpolationFunc interpolationFunc)
 {
     const vec3 points[6] = {vec3(0.0f, 1.0f, 0.0f),
                             vec3(0.0f, -1.0f, 0.0f),
@@ -156,16 +171,16 @@ void IterOctaSphere(const int subdiv, SpherePointFunc pointFunc, SphereTriangleF
     }
 
     // 4 faces from top to equator
-    SphereTriangleSubdiv(indices, points[0], points[3], points[4], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[0], points[4], points[2], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[0], points[2], points[5], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[0], points[5], points[3], subdiv, pointFunc, triangleFunc);
+    SphereTriangleSubdiv(indices, points[0], points[3], points[4], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[0], points[4], points[2], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[0], points[2], points[5], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[0], points[5], points[3], subdiv, pointFunc, triangleFunc, interpolationFunc);
 
     // 4 faces from bottom to equator
-    SphereTriangleSubdiv(indices, points[1], points[4], points[3], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[1], points[2], points[4], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[1], points[5], points[2], subdiv, pointFunc, triangleFunc);
-    SphereTriangleSubdiv(indices, points[1], points[3], points[5], subdiv, pointFunc, triangleFunc);
+    SphereTriangleSubdiv(indices, points[1], points[4], points[3], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[1], points[2], points[4], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[1], points[5], points[2], subdiv, pointFunc, triangleFunc, interpolationFunc);
+    SphereTriangleSubdiv(indices, points[1], points[3], points[5], subdiv, pointFunc, triangleFunc, interpolationFunc);
 }
 
 /*
@@ -176,7 +191,8 @@ void IterOctaSphere(const int subdiv, SpherePointFunc pointFunc, SphereTriangleF
 typedef VertexIndex IndexedPentagon[5];
 
 void IterDodecaSphere(const int subdiv, SpherePointFunc pointFunc,
-                                        SphereTriangleFunc triangleFunc)
+                                        SphereTriangleFunc triangleFunc,
+                                        SphereInterpolationFunc interpolationFunc)
 {
     vec3 points[32],
          centers[12];  // centers of the pentagon faces
@@ -267,7 +283,7 @@ void IterDodecaSphere(const int subdiv, SpherePointFunc pointFunc,
 
             SphereTriangleSubdiv(indices,
                                  points[ic], points[i2], points[i1],
-                                 subdiv, pointFunc, triangleFunc);
+                                 subdiv, pointFunc, triangleFunc, interpolationFunc);
         }
     }
 }

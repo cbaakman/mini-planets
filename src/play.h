@@ -29,7 +29,6 @@
 struct TerrainVertex
 {
     vec3 p, n;
-    vec2 t;
 };
 
 struct TerrainTriangle
@@ -63,6 +62,7 @@ private:
     vec3 mPlanetMassCenter;
 
     ResourceReference<Texture> rGrassTexture;
+    GLuint mTerrainShaderProgram;
 private:
     void GetPlanetTriangles(std::list<Triangle> &);
 
